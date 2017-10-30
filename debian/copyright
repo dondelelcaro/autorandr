@@ -1,0 +1,20 @@
+Files: *
+Copyright: 2015, 2016, Phillip Berndt
+License: GPL-3+
+
+Files: contrib/*
+Copyright: 2011, 2012, Maciej Sitarz
+License: GPL-3+
+
+Files: contrib/autorandr_nitrogen_wallpaper/*
+Copyright: 2015, Ondra Kepi Kudlík, http:kepi.cz
+License: Expat
+
+Files: contrib/packaging/*
+Copyright: 2015, 2016, Phillip Berndt
+License: GPL-3+
+
+Files: debian/*
+Copyright: 2017, Don Armstrong
+License: GPL-3+
+
