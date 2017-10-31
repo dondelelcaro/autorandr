@@ -16,7 +16,9 @@ override_dh_auto_install:
 		PM_SLEEPHOOKS_DIR=/etc/pm/sleep.d/
 	install -D -m 755 contrib/pm-utils/40autorandr debian/autorandr/etc/pm/sleep.d/40autorandr
 
-
+# we do not supply an init script
+override_dh_installinit:
+	dh_installinit -n
 
 override_dh_auto_clean:
 	dh_auto_clean
