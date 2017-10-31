@@ -1,6 +1,6 @@
 autorandr (1.2-1) unstable; urgency=medium
 
-  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+  * Initial release (Closes: #880373)
   * Initial control description based on upstream packaging
 
  -- Don Armstrong <don@debian.org>  Mon, 30 Oct 2017 14:07:26 -0700
