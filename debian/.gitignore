@@ -1,0 +1,5 @@
+autorandr.debhelper.log
+autorandr.substvars
+autorandr/
+debhelper-build-stamp
+files
