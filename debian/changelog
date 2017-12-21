@@ -1,3 +1,10 @@
+autorandr (1.3-2) unstable; urgency=medium
+
+  * Add in support for missing config section in settings.ini from
+    upstream @e717470ee. (Closes: #884855)
+
+ -- Don Armstrong <don@debian.org>  Thu, 21 Dec 2017 09:09:25 -0800
+
 autorandr (1.3-1) unstable; urgency=medium
 
   * New upstream release
