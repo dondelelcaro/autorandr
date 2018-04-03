@@ -26,6 +26,7 @@ from __future__ import print_function
 
 import binascii
 import copy
+import fnmatch
 import getopt
 import hashlib
 import os
@@ -46,6 +47,8 @@ if sys.version_info.major == 2:
     import ConfigParser as configparser
 else:
     import configparser
+
+__version__ = "1.5"
 
 try:
     input = raw_input
@@ -71,13 +74,16 @@ Usage: autorandr [options]
 -s, --save <profile>    save your current setup to profile <profile>
 -r, --remove <profile>  remove profile <profile>
 --batch                 run autorandr for all users with active X11 sessions
+--current               only list current (active) configuration(s)
 --config                dump your current xrandr setup
 --debug                 enable verbose output
+--detected              only list detected (available) configuration(s)
 --dry-run               don't change anything, only print the xrandr commands
 --fingerprint           fingerprint your current hardware setup
 --force                 force (re)loading of a profile
 --skip-options <option> comma separated list of xrandr arguments (e.g. "gamma")
                         to skip both in detecting changes and applying a profile
+--version               show version information and exit
 
  If no suitable profile can be identified, the current configuration is kept.
  To change this behaviour and switch to a fallback configuration, specify
@@ -397,6 +403,10 @@ class XrandrOutput(object):
                 return hashlib.md5(binascii.unhexlify(other.edid)).hexdigest() == self.edid
             if len(self.edid) != 32 and len(other.edid) == 32 and not self.edid.startswith(XrandrOutput.EDID_UNAVAILABLE):
                 return hashlib.md5(binascii.unhexlify(self.edid)).hexdigest() == other.edid
+            if "*" in self.edid:
+                return fnmatch.fnmatch(other.edid, self.edid)
+            elif "*" in other.edid:
+                return fnmatch.fnmatch(self.edid, other.edid)
         return self.edid == other.edid
 
     def __ne__(self, other):
@@ -773,8 +783,8 @@ def generate_virtual_profile(configuration, modes, profile_name):
                     if a["preferred"]:
                         score += 10**6
                     return score
-                modes = sorted(modes[output], key=key)
-                mode = modes[-1]
+                output_modes = sorted(modes[output], key=key)
+                mode = output_modes[-1]
                 configuration[output].options["mode"] = mode["name"]
                 configuration[output].options["rate"] = mode["rate"]
                 configuration[output].options["pos"] = pos_specifier % shift
@@ -793,8 +803,8 @@ def generate_virtual_profile(configuration, modes, profile_name):
                     if a["preferred"]:
                         score += 10**6
                     return score
-                modes = sorted(modes[output], key=key)
-                mode = modes[-1]
+                output_modes = sorted(modes[output], key=key)
+                mode = output_modes[-1]
                 configuration[output].options["mode"] = mode["name"]
                 configuration[output].options["rate"] = mode["rate"]
                 configuration[output].options["pos"] = "0x0"
@@ -817,18 +827,18 @@ def print_profile_differences(one, another):
     "Print the differences between two profiles for debugging"
     if one == another:
         return
-    print("| Differences between the two profiles:", file=sys.stderr)
+    print("| Differences between the two profiles:")
     for output in set(chain.from_iterable((one.keys(), another.keys()))):
         if output not in one:
             if "off" not in another[output].options:
-                print("| Output `%s' is missing from the active configuration" % output, file=sys.stderr)
+                print("| Output `%s' is missing from the active configuration" % output)
         elif output not in another:
             if "off" not in one[output].options:
-                print("| Output `%s' is missing from the new configuration" % output, file=sys.stderr)
+                print("| Output `%s' is missing from the new configuration" % output)
         else:
             for line in one[output].verbose_diff(another[output]):
-                print("| [Output %s] %s" % (output, line), file=sys.stderr)
-    print("\\-", file=sys.stderr)
+                print("| [Output %s] %s" % (output, line))
+    print("\\-")
 
 
 def exit_help():
@@ -1026,7 +1036,8 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv[1:], "s:r:l:d:cfh",
                                    ["batch", "dry-run", "change", "default=", "save=", "remove=", "load=",
-                                    "force", "fingerprint", "config", "debug", "skip-options=", "help"])
+                                    "force", "fingerprint", "config", "debug", "skip-options=", "help",
+                                    "current", "detected", "version"])
     except getopt.GetoptError as e:
         print("Failed to parse options: {0}.\n"
               "Use --help to get usage information.".format(str(e)),
@@ -1037,6 +1048,14 @@ def main(argv):
 
     if "-h" in options or "--help" in options:
         exit_help()
+
+    if "--version" in options:
+        print("autorandr " + __version__)
+        sys.exit(0)
+
+    if "--current" in options and "--detected" in options:
+        print("--current and --detected are mutually exclusive.", file=sys.stderr)
+        sys.exit(posix.EX_USAGE)
 
     # Batch mode
     if "--batch" in options:
@@ -1165,16 +1184,24 @@ def main(argv):
 
         for profile_name in profiles.keys():
             if profile_blocked(os.path.join(profile_path, profile_name), block_script_metadata):
-                print("%s (blocked)" % profile_name, file=sys.stderr)
+                if "--current" not in options and "--detected" not in options:
+                    print("%s (blocked)" % profile_name)
                 continue
             props = []
             if profile_name in detected_profiles:
                 props.append("(detected)")
                 if ("-c" in options or "--change" in options) and not load_profile:
                     load_profile = profile_name
+            elif "--detected" in options:
+                continue
             if profile_name in current_profiles:
                 props.append("(current)")
-            print("%s%s%s" % (profile_name, " " if props else "", " ".join(props)), file=sys.stderr)
+            elif "--current" in options:
+                continue
+            if "--current" in options or "--detected" in options:
+                print("%s" % (profile_name, ))
+            else:
+                print("%s%s%s" % (profile_name, " " if props else "", " ".join(props)))
             if not configs_are_equal and "--debug" in options and profile_name in detected_profiles:
                 print_profile_differences(config, profiles[profile_name]["config"])
 
