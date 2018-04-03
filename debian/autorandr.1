@@ -34,7 +34,8 @@ load profile <profile>
 .PP
 \fB\-d\fR, \fB\-\-default\fR <profile>
 .RS 4
-make profile <profile> the default profile
+use profile <profile> if no other profile matches. [Most useful if set
+in ~/.config/autorandr/settings.ini].
 .RE
 .PP
 \fB\-\-skip\-options\fR <option>
@@ -102,11 +103,11 @@ Stack all connected outputs horizontally at their largest resolution
 vertical
 Stack all connected outputs vertically at their largest resolution
 .SH "EXAMPLES"
-# save the current setup and make it the default
+# save the current setup and set default
 .RE
 autorandr \-\-save mysetup
 .RE
-autorandr \-\-default mysetup
+echo -e '[config]\\ndefault=mysetup' > ~/.config/autorandr/settings.ini
 .RE
 # put laptop in dock (or plug in additional monitors)
 .RE
