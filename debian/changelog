@@ -1,3 +1,9 @@
+autorandr (1.6-1) unstable; urgency=medium
+
+  * New upstream release (Closes: #905236)
+
+ -- Don Armstrong <don@debian.org>  Wed, 01 Aug 2018 19:33:58 -0700
+
 autorandr (1.5-1) unstable; urgency=medium
 
   * New upstream release
