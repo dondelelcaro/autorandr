@@ -38,6 +38,7 @@ Contributors to this version of autorandr are:
 * Adrián López
 * andersonjacob
 * Alexander Wirt
+* Brice Waegeneire
 * Chris Dunder
 * Christoph Gysin
 * Daniel Hahler
@@ -189,7 +190,11 @@ If you switch back from `docked` to `mobile`, `~/.config/autorandr/postswitch`
 is executed instead of the `mobile` specific `postswitch`.
 
 In these scripts, some of autorandr's state is exposed as environment variables
-prefixed with `AUTORANDR_`. The most useful one is `$AUTORANDR_CURRENT_PROFILE`.
+prefixed with `AUTORANDR_`, such as:
+- `AUTORANDR_CURRENT_PROFILE`
+- `AUTORANDR_CURRENT_PROFILES`
+- `AUTORANDR_PROFILE_FOLDER`
+- `AUTORANDR_MONITORS`
 
 If you experience issues with xrandr being executed too early after connecting
 a new monitor, then you can use a `predetect` script to delay the execution.
@@ -204,6 +209,15 @@ monitors using the usual file name globbing rules. This can be used to create
 profiles matching multiple (or any) monitors.
 
 ## Changelog
+
+**autorandr 1.6**
+
+* *2018-04-19* Bugfix: Do not load default profile unless --change is set
+* *2018-04-30* Added a `AUTORANDR_MONITORS` variable to hooks (by @bricewge, #106)
+* *2018-06-29* Fix detection of current configuration if extra monitors are active
+* *2018-07-11* Bugfix in the latest change: Correctly handle "off" minitors when comparing
+* *2018-07-19* Do not kill spawned user processes from systemd unit
+* *2018-07-20* Correctly handle "off" minitors when comparing -- fixup for another bug.
 
 **autorandr 1.5**
 
