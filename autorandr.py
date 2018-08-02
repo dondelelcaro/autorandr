@@ -48,7 +48,7 @@ if sys.version_info.major == 2:
 else:
     import configparser
 
-__version__ = "1.5"
+__version__ = "1.6"
 
 try:
     input = raw_input
@@ -68,7 +68,7 @@ help_text = """
 Usage: autorandr [options]
 
 -h, --help              get this small help
--c, --change            reload current setup
+-c, --change            automatically load the first detected profile
 -d, --default <profile> make profile <profile> the default profile
 -l, --load <profile>    load profile <profile>
 -s, --save <profile>    save your current setup to profile <profile>
@@ -631,6 +631,35 @@ def call_and_retry(*args, **kwargs):
     return retval
 
 
+def get_fb_dimensions(configuration):
+    width = 0
+    height = 0
+    for output in configuration.values():
+        if "off" in output.options or not output.edid:
+            continue
+        # This won't work with all modes -- but it's a best effort.
+        o_width, o_height = map(int, output.options["mode"].split("x"))
+        if "transform" in output.options:
+            a, b, c, d, e, f, g, h, i = map(float, output.options["transform"].split(","))
+            w = (g * o_width + h * o_height + i)
+            x = (a * o_width + b * o_height + c) / w
+            y = (d * o_width + e * o_height + f) / w
+            o_width, o_height = x, y
+        if "pos" in output.options:
+            o_left, o_top = map(int, output.options["pos"].split("x"))
+            o_width += o_left
+            o_height += o_top
+        if "panning" in output.options:
+            match = re.match("(?P<w>[0-9]+)x(?P<h>[0-9]+)(?:\+(?P<x>[0-9]+))?(?:\+(?P<y>[0-9]+))?.*", output.options["panning"])
+            if match:
+                detail = match.groupdict()
+                o_width = int(detail.get("w")) + int(detail.get("x", "0"))
+                o_height = int(detail.get("h")) + int(detail.get("y", "0"))
+        width = max(width, o_width)
+        height = max(height, o_height)
+    return int(width), int(height)
+
+
 def apply_configuration(new_configuration, current_configuration, dry_run=False):
     "Apply a configuration"
     outputs = sorted(new_configuration.keys(), key=lambda x: new_configuration[x].sort_key)
@@ -658,6 +687,13 @@ def apply_configuration(new_configuration, current_configuration, dry_run=False)
     # - Some implementations can not handle --panning without specifying --fb
     #   explicitly, so avoid it unless necessary.
     #   (See https://github.com/phillipberndt/autorandr/issues/72)
+
+    fb_dimensions = get_fb_dimensions(new_configuration)
+    try:
+        base_argv += ["--fb", "%dx%d" % fb_dimensions]
+    except:
+        # Failed to obtain frame-buffer size. Doesn't matter, xrandr will choose for the user.
+        pass
 
     auxiliary_changes_pre = []
     disable_outputs = []
@@ -719,10 +755,24 @@ def apply_configuration(new_configuration, current_configuration, dry_run=False)
 
 
 def is_equal_configuration(source_configuration, target_configuration):
-    "Check if all outputs from target are already configured correctly in source"
+    """
+        Check if all outputs from target are already configured correctly in source and
+        that no other outputs are active.
+    """
     for output in target_configuration.keys():
-        if (output not in source_configuration) or (source_configuration[output] != target_configuration[output]):
-            return False
+        if "off" in target_configuration[output].options:
+            if (output in source_configuration and "off" not in source_configuration[output].options):
+                return False
+        else:
+            if (output not in source_configuration) or (source_configuration[output] != target_configuration[output]):
+                return False
+    for output in source_configuration.keys():
+        if "off" in source_configuration[output].options:
+            if output in target_configuration and "off" not in target_configuration[output].options:
+                return False
+        else:
+            if output not in target_configuration:
+                return False
     return True
 
 
@@ -1023,6 +1073,15 @@ def dispatch_call_to_sessions(argv):
             X11_displays_done.add(display)
 
 
+def enabled_monitors(config):
+    monitors = []
+    for monitor in config:
+        if "--off" in config[monitor].option_vector:
+            continue
+        monitors.append(monitor)
+    return monitors
+
+
 def read_config(options, directory):
     """Parse a configuration config.ini from directory and merge it into
     the options dictionary"""
@@ -1125,7 +1184,11 @@ def main(argv):
         try:
             profile_folder = os.path.join(profile_path, options["--save"])
             save_configuration(profile_folder, config)
-            exec_scripts(profile_folder, "postsave", {"CURRENT_PROFILE": options["--save"], "PROFILE_FOLDER": profile_folder})
+            exec_scripts(profile_folder, "postsave", {
+                "CURRENT_PROFILE": options["--save"],
+                "PROFILE_FOLDER": profile_folder,
+                "MONITORS": ":".join(enabled_monitors(config)),
+            })
         except Exception as e:
             raise AutorandrException("Failed to save current configuration as profile '%s'" % (options["--save"],), e)
         print("Saved current configuration as profile '%s'" % options["--save"])
@@ -1207,7 +1270,7 @@ def main(argv):
 
     if "-d" in options:
         options["--default"] = options["-d"]
-    if not load_profile and "--default" in options:
+    if not load_profile and "--default" in options and ("-c" in options or "--change" in options):
         load_profile = options["--default"]
 
     if load_profile:
@@ -1245,6 +1308,7 @@ def main(argv):
                 script_metadata = {
                     "CURRENT_PROFILE": load_profile,
                     "PROFILE_FOLDER": scripts_path,
+                    "MONITORS": ":".join(enabled_monitors(load_config)),
                 }
                 exec_scripts(scripts_path, "preswitch", script_metadata)
                 if "--debug" in options:
