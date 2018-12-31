@@ -48,7 +48,7 @@ if sys.version_info.major == 2:
 else:
     import configparser
 
-__version__ = "1.6"
+__version__ = "1.7"
 
 try:
     input = raw_input
@@ -645,6 +645,9 @@ def get_fb_dimensions(configuration):
             x = (a * o_width + b * o_height + c) / w
             y = (d * o_width + e * o_height + f) / w
             o_width, o_height = x, y
+        if "rotate" in output.options:
+            if output.options["rotate"] in ("left", "right"):
+                o_width, o_height = o_height, o_width
         if "pos" in output.options:
             o_left, o_top = map(int, output.options["pos"].split("x"))
             o_width += o_left
