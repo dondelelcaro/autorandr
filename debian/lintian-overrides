@@ -1,0 +1,3 @@
+# The systemd service we have needs to be run after sleep to update
+# the monitors if things changed while we were sleeping.
+autorandr binary: systemd-service-file-refers-to-unusual-wantedby-target
