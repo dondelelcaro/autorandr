@@ -1,3 +1,10 @@
+autorandr (1.7-1) unstable; urgency=medium
+
+  * New upstream release
+    - Fix bottom of rotated screen cut off (Closes: #917848)
+
+ -- Don Armstrong <don@debian.org>  Sun, 30 Dec 2018 22:00:08 -0800
+
 autorandr (1.6-1) unstable; urgency=medium
 
   * New upstream release (Closes: #905236)
