@@ -48,7 +48,7 @@ if sys.version_info.major == 2:
 else:
     import configparser
 
-__version__ = "1.7"
+__version__ = "1.8.1"
 
 try:
     input = raw_input
@@ -140,7 +140,7 @@ class XrandrOutput(object):
 
     # This regular expression is used to parse an output in `xrandr --verbose'
     XRANDR_OUTPUT_REGEXP = """(?x)
-        ^(?P<output>[^ ]+)\s+                                                           # Line starts with output name
+        ^\s*(?P<output>\S[^ ]*)\s+                                                      # Line starts with output name
         (?:                                                                             # Differentiate disconnected and connected
             disconnected |                                                              # in first line
             unknown\ connection |
@@ -317,7 +317,7 @@ class XrandrOutput(object):
         else:
             edid = "%s-%s" % (XrandrOutput.EDID_UNAVAILABLE, match["output"])
 
-        if not match["width"]:
+        if not match["connected"] or not match["width"]:
             options["off"] = None
         else:
             if match["mode_name"]:
@@ -338,7 +338,8 @@ class XrandrOutput(object):
                 options["reflect"] = "y"
             elif match["reflect"] == "X and Y":
                 options["reflect"] = "xy"
-            options["pos"] = "%sx%s" % (match["x"], match["y"])
+            if match["x"] or match["y"]:
+                options["pos"] = "%sx%s" % (match["x"] or "0", match["y"] or "0")
             if match["panning"]:
                 panning = [match["panning"]]
                 if match["tracking"]:
@@ -638,7 +639,8 @@ def get_fb_dimensions(configuration):
         if "off" in output.options or not output.edid:
             continue
         # This won't work with all modes -- but it's a best effort.
-        o_width, o_height = map(int, output.options["mode"].split("x"))
+        o_mode = re.search("[0-9]{3,}x[0-9]{3,}", output.options["mode"]).group(0)
+        o_width, o_height = map(int, o_mode.split("x"))
         if "transform" in output.options:
             a, b, c, d, e, f, g, h, i = map(float, output.options["transform"].split(","))
             w = (g * o_width + h * o_height + i)
@@ -655,9 +657,9 @@ def get_fb_dimensions(configuration):
         if "panning" in output.options:
             match = re.match("(?P<w>[0-9]+)x(?P<h>[0-9]+)(?:\+(?P<x>[0-9]+))?(?:\+(?P<y>[0-9]+))?.*", output.options["panning"])
             if match:
-                detail = match.groupdict()
-                o_width = int(detail.get("w")) + int(detail.get("x", "0"))
-                o_height = int(detail.get("h")) + int(detail.get("y", "0"))
+                detail = match.groupdict(default="0")
+                o_width = int(detail.get("w")) + int(detail.get("x"))
+                o_height = int(detail.get("h")) + int(detail.get("y"))
         width = max(width, o_width)
         height = max(height, o_height)
     return int(width), int(height)
@@ -706,6 +708,9 @@ def apply_configuration(new_configuration, current_configuration, dry_run=False)
         if not new_configuration[output].edid or "off" in new_configuration[output].options:
             disable_outputs.append(new_configuration[output].option_vector)
         else:
+            if output not in current_configuration:
+                raise AutorandrException("New profile configures output %s which does not exist in current xrandr --verbose output. "
+                                         "Don't know how to proceed." % output)
             if "off" not in current_configuration[output].options:
                 remain_active_count += 1
 
