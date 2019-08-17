@@ -2,6 +2,7 @@ autorandr (1.8.1-1) unstable; urgency=medium
 
   * New upstream release
   * Remove Debian autorandr manpage
+  * Update dh compat level to 12
 
  -- Don Armstrong <don@debian.org>  Fri, 16 Aug 2019 21:18:44 -0700
 
