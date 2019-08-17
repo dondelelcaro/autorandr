@@ -1,6 +1,5 @@
 DESTDIR=/
 PREFIX=/usr/
-RPM_SPEC=contrib/packaging/rpm/autorandr.spec
 
 .PHONY: all install uninstall autorandr bash_completion autostart_config pmutils systemd udev
 
@@ -152,7 +151,3 @@ uninstall: $(patsubst %,uninstall_%,$(TARGETS))
 
 deb:
 	./contrib/packaging/debian/make_deb.sh
-
-rpm:
-	spectool -g -R $(RPM_SPEC)
-	rpmbuild -ba $(RPM_SPEC)

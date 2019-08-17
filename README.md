@@ -81,7 +81,6 @@ you can
   for various distributions (RPM and DEB based).
 * Use the [X binary package system](https://wiki.voidlinux.eu/XBPS)' on Void Linux 
 * Build a .deb-file from the source tree using `make deb`.
-* Build a .rpm-file from the source tree using `make rpm`.
 
 We appreciate packaging scripts for other distributions, please file a pull
 request if you write one.
@@ -212,10 +211,6 @@ monitors using the usual file name globbing rules. This can be used to create
 profiles matching multiple (or any) monitors.
 
 ## Changelog
-
-**autorandr 1.9 (dev)**
-
-* *2019-03-24* Fix handling of recently disconnected outputs (See #128 and #143)
 
 **autorandr 1.8.1**
 
