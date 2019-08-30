@@ -11,7 +11,7 @@ Vcs-Browser: https://git.donarmstrong.com/deb_pkgs/autorandr.git
 
 Package: autorandr
 Architecture: all
-Depends: x11-xserver-utils, python, ${misc:Depends}
+Depends: x11-xserver-utils, python3, ${misc:Depends}
 Description: Automatically select a display configuration for connected devices
  Autorandr is a script for managing xrandr configurations based on the
  connected devices. It can be set up to automatically switch to a

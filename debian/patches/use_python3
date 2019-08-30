@@ -1,0 +1,12 @@
+Description: Debian specific patch to switch from python to python3
+Bug-Debian: https://bugs.debian.org/936170
+Author: Don Armstrong <don@debian.org>
+Forwarded: not-needed
+--- a/autorandr.py
++++ b/autorandr.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/env python3
+ # encoding: utf-8
+ #
+ # autorandr.py
