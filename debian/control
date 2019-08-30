@@ -2,10 +2,9 @@ Source: autorandr
 Section: x11
 Priority: optional
 Maintainer: Don Armstrong <don@debian.org>
-Build-Depends: debhelper (>= 9), dh-python, python-all, python-setuptools
-Standards-Version: 4.1.1
+Build-Depends: debhelper (>= 9), dh-python, python3-all, python3-setuptools
+Standards-Version: 4.4.0
 Homepage: https://github.com/phillipberndt/autorandr
-# X-Python-Version: >= 2.6
 Vcs-Git: https://salsa.debian.org/debian/autorandr.git
 Vcs-Browser: https://salsa.debian.org/debian/autorandr.git
 
