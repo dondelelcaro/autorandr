@@ -1,3 +1,11 @@
+autorandr (1.8.1-2.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * No-change source-only upload to allow testing migration. 
+    (Closes: #950360)
+
+ -- Boyuan Yang <byang@debian.org>  Fri, 31 Jan 2020 12:44:15 -0500
+
 autorandr (1.8.1-2) unstable; urgency=medium
 
   * Switch to using python3 by changing the #! line and dependencies; no
