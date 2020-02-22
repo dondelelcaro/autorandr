@@ -41,6 +41,7 @@ Contributors to this version of autorandr are:
 * Brice Waegeneire
 * Chris Dunder
 * Christoph Gysin
+* Christophe-Marie Duquesne
 * Daniel Hahler
 * Maciej Sitarz
 * Mathias Svensson
@@ -153,7 +154,7 @@ candidate for doing that is `skip-options`, if you need it.
 
 ### Hook scripts
 
-Three more scripts can be placed in the configuration directory (as 
+Three more scripts can be placed in the configuration directory
 (as defined by the [XDG spec](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html),
 usually `~/.config/autorandr` or `~/.autorandr` if you have an old installation
 for user configuration and `/etc/xdg/autorandr` for system wide configuration):
@@ -213,8 +214,13 @@ profiles matching multiple (or any) monitors.
 
 ## Changelog
 
-**autorandr 1.9 (dev)**
+**autorandr 1.9**
 
+* *2019-11-10* Count closed lids as disconnected outputs
+* *2019-10-05* Do not overwrite existing configurations without `--force`
+* *2019-08-16* Accept modes that don't match the WWWxHHH pattern
+* *2019-03-22* Improve bash autocompletion
+* *2019-03-21* Store CRTC values in configurations
 * *2019-03-24* Fix handling of recently disconnected outputs (See #128 and #143)
 
 **autorandr 1.8.1**

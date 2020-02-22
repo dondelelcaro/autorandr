@@ -37,6 +37,7 @@ import subprocess
 import sys
 import shutil
 import time
+import glob
 
 from collections import OrderedDict
 from distutils.version import LooseVersion as Version
@@ -48,7 +49,7 @@ if sys.version_info.major == 2:
 else:
     import configparser
 
-__version__ = "1.8.1"
+__version__ = "1.9"
 
 try:
     input = raw_input
@@ -80,7 +81,7 @@ Usage: autorandr [options]
 --detected              only list detected (available) configuration(s)
 --dry-run               don't change anything, only print the xrandr commands
 --fingerprint           fingerprint your current hardware setup
---force                 force (re)loading of a profile
+--force                 force (re)loading of a profile / overwrite exiting files
 --skip-options <option> comma separated list of xrandr arguments (e.g. "gamma")
                         to skip both in detecting changes and applying a profile
 --version               show version information and exit
@@ -94,6 +95,18 @@ Usage: autorandr [options]
 
  The following virtual configurations are available:
 """.strip()
+
+
+def is_closed_lid(output):
+    if not re.match(r'(eDP(-?[0-9]\+)*|LVDS(-?[0-9]\+)*)', output):
+        return False
+    lids = glob.glob("/proc/acpi/button/lid/*/state")
+    if len(lids) == 1:
+        state_file = lids[0]
+        with open(state_file) as f:
+            content = f.read()
+            return "close" in content
+    return False
 
 
 class AutorandrException(Exception):
@@ -505,6 +518,12 @@ def parse_xrandr_output():
         if output_modes:
             modes[output_name] = output_modes
 
+    # consider a closed lid as disconnected if other outputs are connected
+    if sum(o.edid != None for o in outputs.values()) > 1:
+        for output_name in outputs.keys():
+            if is_closed_lid(output_name):
+                outputs[output_name].edid = None
+
     return outputs, modes
 
 
@@ -608,13 +627,20 @@ def output_setup(configuration, setup):
             print(output, configuration[output].edid, file=setup)
 
 
-def save_configuration(profile_path, configuration):
+def save_configuration(profile_path, profile_name, configuration, forced=False):
     "Save a configuration into a profile"
     if not os.path.isdir(profile_path):
         os.makedirs(profile_path)
-    with open(os.path.join(profile_path, "config"), "w") as config:
+    config_path = os.path.join(profile_path, "config")
+    setup_path = os.path.join(profile_path, "setup")
+    if os.path.isfile(config_path) and not forced:
+        raise AutorandrException('Refusing to overwrite config "{}" without passing "--force"!'.format(profile_name))
+    if os.path.isfile(setup_path) and not forced:
+        raise AutorandrException('Refusing to overwrite config "{}" without passing "--force"!'.format(profile_name))
+
+    with open(config_path, "w") as config:
         output_configuration(configuration, config)
-    with open(os.path.join(profile_path, "setup"), "w") as setup:
+    with open(setup_path, "w") as setup:
         output_setup(configuration, setup)
 
 
@@ -1220,12 +1246,14 @@ def main(argv):
             sys.exit(1)
         try:
             profile_folder = os.path.join(profile_path, options["--save"])
-            save_configuration(profile_folder, config)
+            save_configuration(profile_folder, options['--save'], config, forced="--force" in options)
             exec_scripts(profile_folder, "postsave", {
                 "CURRENT_PROFILE": options["--save"],
                 "PROFILE_FOLDER": profile_folder,
                 "MONITORS": ":".join(enabled_monitors(config)),
             })
+        except AutorandrException as e:
+            raise e
         except Exception as e:
             raise AutorandrException("Failed to save current configuration as profile '%s'" % (options["--save"],), e)
         print("Saved current configuration as profile '%s'" % options["--save"])
