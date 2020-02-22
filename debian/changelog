@@ -1,3 +1,9 @@
+autorandr (1.9-1) unstable; urgency=medium
+
+  * New upstream release
+
+ -- Don Armstrong <don@debian.org>  Fri, 21 Feb 2020 18:40:24 -0800
+
 autorandr (1.8.1-2) unstable; urgency=medium
 
   * Switch to using python3 by changing the #! line and dependencies; no
