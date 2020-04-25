@@ -191,7 +191,7 @@ configuration takes precedence, and
 it has a unique name.
 
 If you switch back from `docked` to `mobile`, `~/.config/autorandr/postswitch`
-is executed instead of the `mobile` specific `postswitch`.
+is executed instead of the `docked` specific `postswitch`.
 
 In these scripts, some of autorandr's state is exposed as environment variables
 prefixed with `AUTORANDR_`, such as:
@@ -213,6 +213,15 @@ monitors using the usual file name globbing rules. This can be used to create
 profiles matching multiple (or any) monitors.
 
 ## Changelog
+
+**autorandr 1.10**
+* *2020-04-23* Fix hook script execution order to match description from readme
+* *2020-04-11* Handle negative gamma values (fixes #188)
+* *2020-04-11* Sort approximate matches in detected profiles by quality of match
+* *2020-01-31* Handle non-ASCII environment variables (fixes #180)
+* *2019-12-31* Fix output positioning if the top-left output is not the first
+* *2019-12-31* Accept negative gamma values (and interpret them as 0)
+* *2019-12-31* Prefer the X11 launcher over systemd/udev configuration
 
 **autorandr 1.9**
 

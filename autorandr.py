@@ -26,7 +26,6 @@ from __future__ import print_function
 
 import binascii
 import copy
-import fnmatch
 import getopt
 import hashlib
 import os
@@ -49,7 +48,7 @@ if sys.version_info.major == 2:
 else:
     import configparser
 
-__version__ = "1.9"
+__version__ = "1.10"
 
 try:
     input = raw_input
@@ -173,7 +172,7 @@ class XrandrOutput(object):
         (?:[\ \t]*tracking\ (?P<tracking>[0-9]+x[0-9]+\+[0-9]+\+[0-9]+))?               # Tracking information
         (?:[\ \t]*border\ (?P<border>(?:[0-9]+/){3}[0-9]+))?                            # Border information
         (?:\s*(?:                                                                       # Properties of the output
-            Gamma: (?P<gamma>(?:inf|[0-9\.: e])+) |                                     # Gamma value
+            Gamma: (?P<gamma>(?:inf|-?[0-9\.\-: e])+) |                                 # Gamma value
             CRTC:\s*(?P<crtc>[0-9]) |                                                   # CRTC value
             Transform: (?P<transform>(?:[\-0-9\. ]+\s+){3}) |                           # Transformation matrix
             EDID: (?P<edid>\s*?(?:\\n\\t\\t[0-9a-f]+)+) |                               # EDID of the output
@@ -428,9 +427,9 @@ class XrandrOutput(object):
             if len(self.edid) != 32 and len(other.edid) == 32 and not self.edid.startswith(XrandrOutput.EDID_UNAVAILABLE):
                 return hashlib.md5(binascii.unhexlify(self.edid)).hexdigest() == other.edid
             if "*" in self.edid:
-                return fnmatch.fnmatch(other.edid, self.edid)
+                return match_asterisk(self.edid, other.edid) > 0
             elif "*" in other.edid:
-                return fnmatch.fnmatch(self.edid, other.edid)
+                return match_asterisk(other.edid, self.edid) > 0
         return self.edid == other.edid
 
     def __ne__(self, other):
@@ -573,8 +572,29 @@ def get_symlinks(profile_path):
     return symlinks
 
 
+def match_asterisk(pattern, data):
+    """Match data against a pattern
+
+    The difference to fnmatch is that this function only accepts patterns with a single
+    asterisk and that it returns a "closeness" number, which is larger the better the match.
+    Zero indicates no match at all.
+    """
+    if "*" not in pattern:
+        return 1 if pattern == data else 0
+    parts = pattern.split("*")
+    if len(parts) > 2:
+        raise ValueError("Only patterns with a single asterisk are supported, %s is invalid" % pattern)
+    if not data.startswith(parts[0]):
+        return 0
+    if not data.endswith(parts[1]):
+        return 0
+    matched = len(pattern)
+    total = len(data) + 1
+    return matched * 1. / total
+
+
 def find_profiles(current_config, profiles):
-    "Find profiles matching the currently connected outputs"
+    "Find profiles matching the currently connected outputs, sorting asterisk matches to the back"
     detected_profiles = []
     for profile_name, profile in profiles.items():
         config = profile["config"]
@@ -588,7 +608,9 @@ def find_profiles(current_config, profiles):
         if not matches or any((name not in config.keys() for name in current_config.keys() if current_config[name].edid)):
             continue
         if matches:
-            detected_profiles.append(profile_name)
+            closeness = max(match_asterisk(output.edid, current_config[name].edid), match_asterisk(current_config[name].edid, output.edid))
+            detected_profiles.append((closeness, profile_name))
+    detected_profiles = [o[1] for o in sorted(detected_profiles, key=lambda x: -x[0])]
     return detected_profiles
 
 
@@ -717,6 +739,9 @@ def get_fb_dimensions(configuration):
 
 def apply_configuration(new_configuration, current_configuration, dry_run=False):
     "Apply a configuration"
+    found_top_left_monitor = False
+    found_left_monitor = False
+    found_top_monitor = False
     outputs = sorted(new_configuration.keys(), key=lambda x: new_configuration[x].sort_key)
     if dry_run:
         base_argv = ["echo", "xrandr"]
@@ -776,8 +801,21 @@ def apply_configuration(new_configuration, current_configuration, dry_run=False)
                                 option_vector = option_vector[:option_index] + option_vector[option_index + 2:]
                         except ValueError:
                             pass
-
-            enable_outputs.append(option_vector)
+            if not found_top_left_monitor:
+                position = new_configuration[output].options.get("pos", "0x0")
+                if position == "0x0":
+                    found_top_left_monitor = True
+                    enable_outputs.insert(0, option_vector)
+                elif not found_left_monitor and position.startswith("0x"):
+                    found_left_monitor = True
+                    enable_outputs.insert(0, option_vector)
+                elif not found_top_monitor and position.endswith("x0"):
+                    found_top_monitor = True
+                    enable_outputs.insert(0, option_vector)
+                else:
+                    enable_outputs.append(option_vector)
+            else:
+                enable_outputs.append(option_vector)
 
     # Perform pe-change auxiliary changes
     if auxiliary_changes_pre:
@@ -803,6 +841,13 @@ def apply_configuration(new_configuration, current_configuration, dry_run=False)
     if len(disable_outputs) > 0 and len(disable_outputs) % 2 == 0:
         # In the context of a xrandr call that changes the display state, `--query' should do nothing
         disable_outputs.insert(0, ['--query'])
+
+    # If we did not find a candidate, we might need to inject a call
+    # If there is no output to disable, we will enable 0x and x0 at the same time
+    if not found_top_left_monitor and len(disable_outputs) > 0:
+        # If the call to 0x and x0 is splitted, inject one of them
+        if found_top_monitor and found_left_monitor:
+            enable_outputs.insert(0, enable_outputs[0])
 
     # Enable the remaining outputs in pairs of two operations
     operations = disable_outputs + enable_outputs
@@ -992,11 +1037,12 @@ def exec_scripts(profile_path, script_name, meta_information=None):
     if not os.path.isdir(user_profile_path):
         user_profile_path = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")), "autorandr")
 
-    candidate_directories = [user_profile_path]
-    for config_dir in os.environ.get("XDG_CONFIG_DIRS", "/etc/xdg").split(":"):
-        candidate_directories.append(os.path.join(config_dir, "autorandr"))
+    candidate_directories = []
     if profile_path:
         candidate_directories.append(profile_path)
+    candidate_directories.append(user_profile_path)
+    for config_dir in os.environ.get("XDG_CONFIG_DIRS", "/etc/xdg").split(":"):
+        candidate_directories.append(os.path.join(config_dir, "autorandr"))
 
     for folder in candidate_directories:
         if script_name not in ran_scripts:
@@ -1061,7 +1107,7 @@ def dispatch_call_to_sessions(argv):
             os.chdir(pwent.pw_dir)
             os.environ.clear()
             os.environ.update(process_environ)
-            os.execl(autorandr_binary, autorandr_binary, *argv[1:])
+            os.execl(sys.executable, sys.executable, autorandr_binary, *argv[1:])
             os.exit(1)
         os.waitpid(child_pid, 0)
 
@@ -1084,7 +1130,11 @@ def dispatch_call_to_sessions(argv):
             continue
 
         process_environ = {}
-        for environ_entry in open(environ_file).read().split("\0"):
+        for environ_entry in open(environ_file, 'rb').read().split(b"\0"):
+            try:
+                environ_entry = environ_entry.decode("ascii")
+            except UnicodeDecodeError:
+                continue
             name, sep, value = environ_entry.partition("=")
             if name and sep:
                 if name == "DISPLAY" and "." in value:
@@ -1310,6 +1360,7 @@ def main(argv):
             "CURRENT_PROFILES": ":".join(current_profiles)
         }
 
+        best_index = 9999
         for profile_name in profiles.keys():
             if profile_blocked(os.path.join(profile_path, profile_name), block_script_metadata):
                 if "--current" not in options and "--detected" not in options:
@@ -1317,9 +1368,15 @@ def main(argv):
                 continue
             props = []
             if profile_name in detected_profiles:
-                props.append("(detected)")
-                if ("-c" in options or "--change" in options) and not load_profile:
+                if len(detected_profiles) == 1:
+                    index = 1
+                    props.append("(detected)")
+                else:
+                    index = detected_profiles.index(profile_name) + 1
+                    props.append("(detected) (%d%s match)" % (index, ["st", "nd", "rd"][index - 1] if index < 4 else "th"))
+                if ("-c" in options or "--change" in options) and index < best_index:
                     load_profile = profile_name
+                    best_index = index
             elif "--detected" in options:
                 continue
             if profile_name in current_profiles:
