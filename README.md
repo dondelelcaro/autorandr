@@ -214,7 +214,11 @@ profiles matching multiple (or any) monitors.
 
 ## Changelog
 
-**autorandr 1.10 (dev)**
+**autorandr 1.10**
+* *2020-04-23* Fix hook script execution order to match description from readme
+* *2020-04-11* Handle negative gamma values (fixes #188)
+* *2020-04-11* Sort approximate matches in detected profiles by quality of match
+* *2020-01-31* Handle non-ASCII environment variables (fixes #180)
 * *2019-12-31* Fix output positioning if the top-left output is not the first
 * *2019-12-31* Accept negative gamma values (and interpret them as 0)
 * *2019-12-31* Prefer the X11 launcher over systemd/udev configuration
