@@ -1,7 +1,8 @@
 DESTDIR=/
 PREFIX=/usr/
 RPM_SPEC=contrib/packaging/rpm/autorandr.spec
-CFLAGS=-O2
+CFLAGS?=-O2 -Wall
+CLEANUP_FILES=
 
 .PHONY: all install uninstall autorandr bash_completion autostart_config pmutils systemd udev
 
@@ -24,9 +25,11 @@ all:
 	@echo
 	@echo 'E.g. "make install TARGETS='autorandr pmutils' PM_UTILS_DIR=/etc/pm/sleep.d".'
 	@echo
-	@echo "By default, if xcb libraries are available, autorandr prefers to"
-	@echo "install a launcher that listens for X11 randr events and runs"
-	@echo "autorandr whenever something changes, over udev/systemd rules."
+	@echo "An additional TARGETS variable \"launcher\" is available. This"
+	@echo "installs a launcher called \"autorandr_launcher\". The launcher"
+	@echo "is able to be run by the user and calls autorandr automatically"
+	@echo "without using udev rules. The launcher is an alternative to the"
+	@echo "udev/systemd setup that is more stable for some users."
 	@echo
 	@echo "The following additional targets are available:"
 	@echo
@@ -140,19 +143,19 @@ uninstall_manpage:
 	rm -f ${DESTDIR}/${MANDIR}/autorandr.1
 
 # Rules for launcher
-LAUNCHER_FLAGS=$(shell pkg-config --libs --cflags pkg-config xcb xcb-randr 2>/dev/null)
-ifneq (,$(LAUNCHER_FLAGS))
-DEFAULT_TARGETS+=launcher
-DEFAULT_TARGETS:=$(filter-out systemd udev,$(DEFAULT_TARGETS))
-endif
+LAUNCHER_LDLIBS=$(shell pkg-config --libs pkg-config xcb xcb-randr 2>/dev/null)
+ifneq (,$(LAUNCHER_LDLIBS))
+CLEANUP_FILES+=contrib/autorandr_launcher/autorandr-launcher
+LAUNCHER_CFLAGS=$(shell pkg-config --cflags pkg-config xcb xcb-randr 2>/dev/null)
+contrib/autorandr_launcher/autorandr-launcher: contrib/autorandr_launcher/autorandr_launcher.c
+	$(CC) $(CFLAGS) $(LAUNCHER_CFLAGS) -o $@ $+ $(LDFLAGS) $(LAUNCHER_LDLIBS) $(LDLIBS)
 
-install_launcher:
-	gcc -Wall $(CFLAGS) contrib/autorandr_launcher/autorandr_launcher.c -o contrib/autorandr_launcher/autorandr-launcher $(LAUNCHER_FLAGS)
+install_launcher: contrib/autorandr_launcher/autorandr-launcher
 	install -D -m 755 contrib/autorandr_launcher/autorandr-launcher ${DESTDIR}${PREFIX}/bin/autorandr-launcher
-
 	install -D -m 644 contrib/etc/xdg/autostart/autorandr-launcher.desktop ${DESTDIR}/${XDG_AUTOSTART_DIR}/autorandr-launcher.desktop
 ifneq ($(PREFIX),/usr/)
 	sed -i -re 's#/usr/bin/autorandr-launcher#$(subst #,\#,${PREFIX})/bin/autorandr-launcher#g' ${DESTDIR}/${XDG_AUTOSTART_DIR}/autorandr-launcher.desktop
+endif
 endif
 
 uninstall_launcher:
@@ -169,3 +172,6 @@ deb:
 rpm:
 	spectool -g -R $(RPM_SPEC)
 	rpmbuild -ba $(RPM_SPEC)
+
+clean:
+	rm -f $(CLEANUP_FILES)
