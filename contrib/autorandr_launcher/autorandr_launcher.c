@@ -108,7 +108,10 @@ int main(int argc, char **argv)
 		sigaction(SIGTERM, &sa, NULL);
 		sigaction(SIGQUIT, &sa, NULL);
 		signal(SIGHUP, SIG_IGN);
-		daemon(0, 0);
+		if (daemon(0, 0)) {
+			fprintf(stderr, "Failed to daemonize!\n");
+			exit(1);
+		}
 	}
 
 	int screenNum;
@@ -140,6 +143,10 @@ int main(int argc, char **argv)
 
 		ar_log("Waiting for event\n");
 		xcb_generic_event_t *evt = xcb_wait_for_event(c);
+		if (!evt) {
+			break;
+		}
+
 		// ar_log("Event type: %" PRIu8 "\n", evt->response_type);
 		// ar_log("screen change masked: %" PRIu8 "\n",
 		//       evt->response_type &
