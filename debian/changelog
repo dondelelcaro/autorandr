@@ -1,3 +1,9 @@
+autorandr (1.10.1-1) unstable; urgency=medium
+
+  * New upstream release (Closes: #958833)
+
+ -- Don Armstrong <don@debian.org>  Sun, 23 Aug 2020 17:49:28 -0700
+
 autorandr (1.9-1) unstable; urgency=medium
 
   * New upstream release
