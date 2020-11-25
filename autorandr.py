@@ -48,7 +48,7 @@ if sys.version_info.major == 2:
 else:
     import configparser
 
-__version__ = "1.10.1"
+__version__ = "1.11"
 
 try:
     input = raw_input
@@ -1101,14 +1101,21 @@ def dispatch_call_to_sessions(argv):
             # so it should be safe. Also, note that since the environment
             # is taken from a process owned by the user, reusing it should
             # not leak any information.
-            os.setgroups([])
+            try:
+                os.setgroups(os.getgrouplist(pwent.pw_name, pwent.pw_gid))
+            except AttributeError:
+                # Python 2 doesn't have getgrouplist
+                os.setgroups([])
             os.setresgid(pwent.pw_gid, pwent.pw_gid, pwent.pw_gid)
             os.setresuid(pwent.pw_uid, pwent.pw_uid, pwent.pw_uid)
             os.chdir(pwent.pw_dir)
             os.environ.clear()
             os.environ.update(process_environ)
-            os.execl(sys.executable, sys.executable, autorandr_binary, *argv[1:])
-            os.exit(1)
+            if sys.executable != "" and sys.executable != None:
+                os.execl(sys.executable, sys.executable, autorandr_binary, *argv[1:])
+            else:
+                os.execl(autorandr_binary, autorandr_binary, *argv[1:])
+            sys.exit(1)
         os.waitpid(child_pid, 0)
 
     for directory in os.listdir("/proc"):
